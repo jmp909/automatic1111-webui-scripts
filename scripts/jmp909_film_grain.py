@@ -37,9 +37,12 @@ class Script(scripts.Script):
 # The returned values are passed to the run method as parameters.
 
     def ui(self, is_img2img):
-        amount = gr.Slider(minimum=0.0, maximum=1.0, step=0.1, value=0.4, label="Amount")
+        upscale=gr.Checkbox(label="Upscale?", show_label=True)
+        upscale_factor = gr.Slider(minimum=1, maximum=4, step=0.1, label='Upscale factor', value=2)
+        amount = gr.Slider(minimum=0.0, maximum=1.0, step=0.1, value=0.4, label="Noise Opacity")
         save_original = gr.Checkbox(label="Save Original?", show_label=True)
-        return [amount, save_original]
+
+        return [upscale, upscale_factor, amount, save_original]
 
 # This is where the additional processing is implemented. The parameters include
 # self, the model object "p" (a StableDiffusionProcessing class, see
@@ -48,7 +51,7 @@ class Script(scripts.Script):
 # to be used in processing. The return value should be a Processed object, which is
 # what is returned by the process_images method.
 
-    def run(self, p, amount, save_original):
+    def run(self, p, upscale, upscale_factor, amount, save_original):
 
         import cv2
         import numpy as np
@@ -61,6 +64,12 @@ class Script(scripts.Script):
         # TODO: implement different modes (gaussian, salt & pepper etc)
         # https://scikit-image.org/docs/stable/api/skimage.util.html#skimage.util.random_noise
 
+        def simple_upscale(img, upscale_factor):
+            w, h = img.size
+            w = int(w * upscale_factor)
+            h = int(h * upscale_factor)
+            return img.resize((w, h), Image.Resampling.LANCZOS)
+
         def filmgrain(img_pil,mode,amount):
             im_arr = np.asarray(img_pil)
             noise_img = random_noise(im_arr, mode='poisson')
@@ -68,6 +77,8 @@ class Script(scripts.Script):
             blended_img = cv2.addWeighted(im_arr, 1 - amount,new_img, amount,0)            
             new_img_pil = Image.fromarray(blended_img)
             return new_img_pil
+
+        
 
         infotexts = []
         state.job_count = p.n_iter
@@ -83,6 +94,9 @@ class Script(scripts.Script):
 
             if(save_original):
                 images.save_image(img, p.outpath_samples, "", proc.seed, proc.prompt, opts.samples_format, info= proc.info, p=p)
+
+            if(upscale):
+                img = simple_upscale(img, upscale_factor)
 
             img_fg = filmgrain(img, "poisson", amount)
             proc.images[0] = img_fg
