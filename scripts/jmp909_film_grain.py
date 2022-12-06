@@ -64,6 +64,7 @@ class Script(scripts.Script):
         # TODO: implement different modes (gaussian, salt & pepper etc)
         # https://scikit-image.org/docs/stable/api/skimage.util.html#skimage.util.random_noise
 
+        # upscale function from https://github.com/Extraltodeus/advanced-loopback-for-sd-webui
         def simple_upscale(img, upscale_factor):
             w, h = img.size
             w = int(w * upscale_factor)
